@@ -1,6 +1,6 @@
 /**
  * The Forgotten Server - a free and open-source MMORPG server emulator
- * Copyright (C) 2019  Mark Samman <mark.samman@gmail.com>
+ * Copyright (C) 2021  Mark Samman <mark.samman@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -516,10 +516,14 @@ void ProtocolGame::onRecvFirstMessage(NetworkMessage &msg)
 		return;
 	}
 
-	if (clientVersion != g_config.getNumber(ConfigManager::CLIENT_VERSION))
+	bool allowClientOld = g_config.getBoolean(ConfigManager::ALLOW_CLIENT_OLD);
+	if (clientVersion != g_config.getNumber(ConfigManager::CLIENT_VERSION) && (allowClientOld && version != 1100))
 	{
 		std::ostringstream ss;
-		ss << "Only clients with protocol " << g_config.getString(ConfigManager::CLIENT_VERSION_STR) << " allowed!";
+		ss << "Only clients with protocol " << g_config.getString(ConfigManager::CLIENT_VERSION_STR);
+		if (allowClientOld)
+			ss << " and 10.00";
+		ss << " allowed!";
 		disconnectClient(ss.str());
 		return;
 	}
