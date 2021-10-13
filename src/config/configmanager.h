@@ -1,6 +1,6 @@
 /**
  * The Forgotten Server - a free and open-source MMORPG server emulator
- * Copyright (C) 2019  Mark Samman <mark.samman@gmail.com>
+ * Copyright (C) 2021  Mark Samman <mark.samman@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -60,6 +60,7 @@ class ConfigManager
 			FREE_QUESTS,
 			ONLY_PREMIUM_ACCOUNT,
 			MAP_CUSTOM_ENABLED,
+			ALLOW_CLIENT_OLD,
 			ALL_CONSOLE_LOG,
       SAVE_INTERVAL,
 			SAVE_INTERVAL_CLEAN_MAP,
