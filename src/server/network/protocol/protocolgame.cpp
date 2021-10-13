@@ -1,6 +1,6 @@
 /**
  * The Forgotten Server - a free and open-source MMORPG server emulator
- * Copyright (C) 2019  Mark Samman <mark.samman@gmail.com>
+ * Copyright (C) 2021  Mark Samman <mark.samman@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -58,7 +58,9 @@ void ProtocolGame::AddItem(NetworkMessage &msg, uint16_t id, uint8_t count)
 	const ItemType &it = Item::items[id];
 
 	msg.add<uint16_t>(it.clientId);
-
+	if (version < 1200) {
+		msg.addByte(0xFF); // MARK_UNMARKED
+	}
 	if (it.stackable)
 	{
 		msg.addByte(count);
@@ -67,17 +69,13 @@ void ProtocolGame::AddItem(NetworkMessage &msg, uint16_t id, uint8_t count)
 	{
 		msg.addByte(fluidMap[count & 7]);
 	}
-	else if (it.isContainer() && player->getOperatingSystem() <= CLIENTOS_NEW_MAC)
+	else if (version >= 1200 && it.isContainer() && player->getOperatingSystem() <= CLIENTOS_NEW_MAC)
 	{
 		msg.addByte(0x00);
 		msg.addByte(0x00);
 	}
-	if (it.isPodium) {
-		msg.add<uint16_t>(0);
-		msg.add<uint16_t>(0);
-
-		msg.addByte(2);
-		msg.addByte(0x01);
+	if (version < 1200 && it.isAnimation) {
+		msg.addByte(0xFE); // random phase (0xFF for async)
 	}
 }
 
@@ -91,7 +89,9 @@ void ProtocolGame::AddItem(NetworkMessage &msg, const Item *item)
 	const ItemType &it = Item::items[item->getID()];
 
 	msg.add<uint16_t>(it.clientId);
-
+	if (version < 1200) {
+		msg.addByte(0xFF); // MARK_UNMARKED
+	}
 	if (it.stackable)
 	{
 		msg.addByte(std::min<uint16_t>(0xFF, item->getItemCount()));
@@ -100,7 +100,7 @@ void ProtocolGame::AddItem(NetworkMessage &msg, const Item *item)
 	{
 		msg.addByte(fluidMap[item->getFluidType() & 7]);
 	}
-	else if (it.isContainer() && player->getOperatingSystem() <= CLIENTOS_NEW_MAC)
+	else if (version >= 1200 && it.isContainer() && player->getOperatingSystem() <= CLIENTOS_NEW_MAC)
 	{
 		const Container *container = item->getContainer();
 		if (container && container->getHoldingPlayer() == player)
@@ -130,7 +130,7 @@ void ProtocolGame::AddItem(NetworkMessage &msg, const Item *item)
 		}
 
 		// Quiver ammo count
-    	if (container && item->getWeaponType() == WEAPON_QUIVER && player->getThing(CONST_SLOT_RIGHT) == item) {
+    	if (item->getWeaponType() == WEAPON_QUIVER && player->getThing(CONST_SLOT_RIGHT) == item) {
       		uint16_t ammoTotal = 0;
       		for (Item* listItem : container->getItemList()) {
         		ammoTotal += listItem->getItemCount();
@@ -141,55 +141,8 @@ void ProtocolGame::AddItem(NetworkMessage &msg, const Item *item)
     	else
       		msg.addByte(0x00);
 	}
-	if (it.isPodium) {
-		const ItemAttributes::CustomAttribute* podiumVisible = item->getCustomAttribute("PodiumVisible");
-		const ItemAttributes::CustomAttribute* lookType = item->getCustomAttribute("LookType");
-		const ItemAttributes::CustomAttribute* lookMount = item->getCustomAttribute("LookMount");
-		const ItemAttributes::CustomAttribute* lookDirection = item->getCustomAttribute("LookDirection");
-
-		if (lookType) {
-			uint16_t look = static_cast<uint16_t>(boost::get<int64_t>(lookType->value));
-			msg.add<uint16_t>(look);
-
-			if(look != 0) {
-				const ItemAttributes::CustomAttribute* lookHead = item->getCustomAttribute("LookHead");
-				const ItemAttributes::CustomAttribute* lookBody = item->getCustomAttribute("LookBody");
-				const ItemAttributes::CustomAttribute* lookLegs = item->getCustomAttribute("LookLegs");
-				const ItemAttributes::CustomAttribute* lookFeet = item->getCustomAttribute("LookFeet");
-
-				msg.addByte(lookHead ? static_cast<uint8_t>(boost::get<int64_t>(lookHead->value)) : 0);
-				msg.addByte(lookBody ? static_cast<uint8_t>(boost::get<int64_t>(lookBody->value)) : 0);
-				msg.addByte(lookLegs ? static_cast<uint8_t>(boost::get<int64_t>(lookLegs->value)) : 0);
-				msg.addByte(lookFeet ? static_cast<uint8_t>(boost::get<int64_t>(lookFeet->value)) : 0);
-
-				const ItemAttributes::CustomAttribute* lookAddons = item->getCustomAttribute("LookAddons");
-				msg.addByte(lookAddons ? static_cast<uint8_t>(boost::get<int64_t>(lookAddons->value)) : 0);
-			}
-		} else {
-			msg.add<uint16_t>(0);
-		}
-
-		if (lookMount) {
-			uint16_t look = static_cast<uint16_t>(boost::get<int64_t>(lookMount->value));
-			msg.add<uint16_t>(look);
-
-			if (look != 0) {
-				const ItemAttributes::CustomAttribute* lookHead = item->getCustomAttribute("LookMountHead");
-				const ItemAttributes::CustomAttribute* lookBody = item->getCustomAttribute("LookMountBody");
-				const ItemAttributes::CustomAttribute* lookLegs = item->getCustomAttribute("LookMountLegs");
-				const ItemAttributes::CustomAttribute* lookFeet = item->getCustomAttribute("LookMountFeet");
-
-				msg.addByte(lookHead ? static_cast<uint8_t>(boost::get<int64_t>(lookHead->value)) : 0);
-				msg.addByte(lookBody ? static_cast<uint8_t>(boost::get<int64_t>(lookBody->value)) : 0);
-				msg.addByte(lookLegs ? static_cast<uint8_t>(boost::get<int64_t>(lookLegs->value)) : 0);
-				msg.addByte(lookFeet ? static_cast<uint8_t>(boost::get<int64_t>(lookFeet->value)) : 0);
-			}
-		} else {
-			msg.add<uint16_t>(0);
-		}
-
-		msg.addByte(lookDirection ? static_cast<uint8_t>(boost::get<int64_t>(lookDirection->value)) : 2);
-		msg.addByte(podiumVisible ? static_cast<uint8_t>(boost::get<int64_t>(podiumVisible->value)) : 0x01);
+	if (version < 1200 && it.isAnimation) {
+		msg.addByte(0xFE); // random phase (0xFF for async)
 	}
 }
 
