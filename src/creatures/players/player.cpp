@@ -430,7 +430,11 @@ uint32_t Player::getClientIcons() const
 	uint32_t icons = 0;
 	for (Condition* condition : conditions) {
 		if (!isSuppress(condition->getType())) {
-			icons |= condition->getIcons();
+			if (getProtocolVersion() >= 1200 || condition->getIcons() < ICON_LESSERHEX) {
+				icons |= condition->getIcons();
+			} else if (getProtocolVersion() < 1200 && condition->getIcons() == ICON_NEWMANASHIELD){
+				icons |= ICON_MANASHIELD;
+			}
 		}
 	}
 
@@ -438,7 +442,7 @@ uint32_t Player::getClientIcons() const
 		icons |= ICON_REDSWORDS;
 	}
 
-	if (tile && tile->hasFlag(TILESTATE_PROTECTIONZONE)) {
+	if (tile->hasFlag(TILESTATE_PROTECTIONZONE)) {
 		icons |= ICON_PIGEON;
 		client->sendRestingStatus(1);
 
@@ -1333,6 +1337,8 @@ void Player::onCreatureAppear(Creature* creature, bool isLogin)
 		}
 
 		SPDLOG_INFO("{} has logged in", name);
+		
+		std::cout << name << "Logou usando" << " | Client: " << getProtocolVersion()/100. << std::endl;
 
 		if (guild) {
 			guild->addMember(this);
@@ -1354,6 +1360,7 @@ void Player::onCreatureAppear(Creature* creature, bool isLogin)
 		}
 
 		// Reload bestiary tracker
+		if(getProtocolVersion() >= 1200)
 		refreshBestiaryTracker(getBestiaryTrackerList());
 
 		g_game.checkPlayersRecord();
